@@ -40,7 +40,7 @@ window.CAFE_CONFIG = {
   // Example:
   // googleReviewUrl: "https://g.page/r/XXXXXXXX/review"
 
-  googleReviewUrl: "PASTE_GOOGLE_REVIEW_LINK_HERE",
+  googleReviewUrl: "https://maps.app.goo.gl/ScXeqAGpBtousq37A?g_st=ac",
 
 
   // =========================
