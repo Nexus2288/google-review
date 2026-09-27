@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#100f0d" />
+  <meta name="description" content="Share your experience with our cafe." />
+
+  <title>Share Your Experience</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <main class="page-shell">
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+
+    <section class="review-page">
+
+      <header class="hero">
+        <div class="brand-mark" id="brandMark">E&B</div>
+
+        <div class="brand-copy">
+          <p class="eyebrow">WELCOME TO</p>
+          <h1 id="cafeName">Ember &amp; Bean</h1>
+          <p class="location" id="cafeLocation">Jaipur · Café &amp; Coffee</p>
+        </div>
+
+        <button class="icon-button" type="button" aria-label="About this cafe">i</button>
+      </header>
+
+      <div class="hero-line"></div>
+
+      <section class="intro reveal">
+        <span class="spark">✦</span>
+        <h2>How was your visit?</h2>
+        <p>
+          Your experience matters. Tell us a little about it and we'll help
+          you put it into words.
+        </p>
+      </section>
+
+      <section class="card reveal delay-1">
+        <div class="section-heading">
+          <div>
+            <span class="step">01</span>
+            <h3>Rate your experience</h3>
+          </div>
+          <span class="required">Required</span>
+        </div>
+
+        <div class="stars" id="stars" role="radiogroup" aria-label="Rating">
+          <button type="button" class="star" data-rating="1" aria-label="1 star">★</button>
+          <button type="button" class="star" data-rating="2" aria-label="2 stars">★</button>
+          <button type="button" class="star" data-rating="3" aria-label="3 stars">★</button>
+          <button type="button" class="star" data-rating="4" aria-label="4 stars">★</button>
+          <button type="button" class="star" data-rating="5" aria-label="5 stars">★</button>
+        </div>
+
+        <p class="rating-label" id="ratingLabel">Tap a star to rate</p>
+      </section>
+
+      <section class="card reveal delay-2">
+        <div class="section-heading">
+          <div>
+            <span class="step">02</span>
+            <h3>What did you enjoy?</h3>
+          </div>
+          <span class="optional">Optional</span>
+        </div>
+
+        <div class="chip-grid" id="experienceChips">
+          <button class="chip" type="button" data-value="Food">🍽️ <span>Food</span></button>
+          <button class="chip" type="button" data-value="Drinks">☕ <span>Drinks</span></button>
+          <button class="chip" type="button" data-value="Ambience">✨ <span>Ambience</span></button>
+          <button class="chip" type="button" data-value="Service">🤝 <span>Service</span></button>
+          <button class="chip" type="button" data-value="Staff">😊 <span>Staff</span></button>
+          <button class="chip" type="button" data-value="Value">💫 <span>Value</span></button>
+        </div>
+      </section>
+
+      <section class="card reveal delay-3">
+        <div class="section-heading">
+          <div>
+            <span class="step">03</span>
+            <h3>What did you have?</h3>
+          </div>
+          <span class="optional">Optional</span>
+        </div>
+
+        <div class="chip-grid" id="itemChips"></div>
+      </section>
+
+      <section class="card reveal delay-4">
+        <div class="section-heading">
+          <div>
+            <span class="step">04</span>
+            <h3>Anything else?</h3>
+          </div>
+          <span class="optional">Optional</span>
+        </div>
+
+        <textarea
+          id="note"
+          maxlength="180"
+          placeholder="For example: cozy place, quick service, loved the coffee..."
+        ></textarea>
+
+        <div class="char-count">
+          <span id="charCount">0</span>/180
+        </div>
+      </section>
+
+      <button class="generate-button reveal delay-5" id="generateButton" type="button">
+        <span class="button-icon">✦</span>
+        <span>Create My Review</span>
+        <span class="button-arrow">→</span>
+      </button>
+
+      <section class="review-preview" id="reviewPreview" aria-live="polite">
+        <div class="preview-top">
+          <div>
+            <p class="eyebrow">YOUR REVIEW</p>
+            <h3>Ready to share</h3>
+          </div>
+
+          <span class="ai-badge">ASSISTED</span>
+        </div>
+
+        <div
+          class="review-text"
+          id="reviewText"
+          aria-label="Generated review"
+        >
+          Your review will appear here after you create it.
+        </div>
+
+        <div class="preview-actions">
+          <button class="secondary-button" type="button" id="editButton">✎ Edit</button>
+          <button class="secondary-button" type="button" id="regenerateButton">↻ Regenerate</button>
+        </div>
+
+        <button class="google-button" type="button" id="googleButton">
+          <span class="google-g">G</span>
+          <span>Continue to Google</span>
+          <span>↗</span>
+        </button>
+
+        <p class="google-note">
+          Please review and edit your text before posting.
+        </p>
+      </section>
+
+      <section class="social reveal">
+        <p class="eyebrow">STAY CONNECTED</p>
+        <h3 id="socialTitle">Follow Ember &amp; Bean</h3>
+
+        <div class="social-grid">
+          <a href="#" class="social-button" data-social="instagram">◎ <span>Instagram</span></a>
+          <a href="#" class="social-button" data-social="facebook">f <span>Facebook</span></a>
+          <a href="#" class="social-button" data-social="youtube">▶ <span>YouTube</span></a>
+          <a href="#" class="social-button" data-social="whatsapp">◔ <span>WhatsApp</span></a>
+        </div>
+      </section>
+
+      <footer>
+        <span>Thank you for visiting</span>
+        <span>·</span>
+        <span id="footerCafeName">Ember &amp; Bean</span>
+      </footer>
+
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
