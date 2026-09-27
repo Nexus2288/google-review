@@ -38,5 +38,5 @@ const CAFE_CONFIG = {
 
   // Optional Google Apps Script Web App URL.
   // Leave blank until Part 4 / Sheets setup.
-  sheetsWebAppUrl: ""
+  sheetsWebAppUrl: "https://script.google.com/macros/s/AKfycbwpccxpXds15apsqtfQIG6vouTh5MTuJlD8SzXC76nlinDuzLPYq9rVt0kXY9Q6dykViQ/exec"
 };
