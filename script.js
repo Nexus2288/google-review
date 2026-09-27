@@ -1111,101 +1111,26 @@ function saveEditing() {
 // ============================================================
 
 async function continueToGoogle() {
-
-  syncState();
-
-
-  if (!els.reviewText) {
-
-    alert(
-      "Review not found."
-    );
-
-    return;
-
-  }
-
-
-  const review =
-    els.reviewText.textContent.trim();
-
+  const review = elements.reviewText.value.trim();
 
   if (!review) {
-
-    alert(
-      "Please create a review first."
-    );
-
+    alert("Please generate a review first.");
     return;
-
   }
-
-
-  const config =
-    getConfig();
-
-
-  const googleUrl =
-    config.googleReviewUrl;
-
-
-  if (!googleUrl) {
-
-    alert(
-      "Google review link is not configured."
-    );
-
-    return;
-
-  }
-
 
   try {
-
-    await navigator.clipboard.writeText(
-      review
-    );
-
-
-    alert(
-      "Review copied!\n\nGoogle Reviews will open now. Paste your review and submit it."
-    );
-
+    await navigator.clipboard.writeText(review);
   } catch (error) {
-
-    alert(
-      "Please copy the review manually. Google Reviews will open now."
-    );
-
+    console.error("Clipboard copy failed:", error);
   }
 
+  window.open(config.googleReviewUrl, "_blank");
 
-  logEvent({
-
-    event:
-      "google_click",
-
-    rating:
-      state.rating,
-
-    experiences:
-      state.experiences,
-
-    items:
-      state.items,
-
-    review:
-      review
-
-  });
-
-
-  window.open(
-    googleUrl,
-    "_blank",
-    "noopener,noreferrer"
-  );
-
+  setTimeout(() => {
+    alert(
+      "Review copied!\n\nGoogle Reviews has been opened. Paste your review and submit it."
+    );
+  }, 300);
 }
 
 
