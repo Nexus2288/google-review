@@ -26,7 +26,12 @@ const els = {
   stars: [...document.querySelectorAll(".star")],
   ratingLabel: document.getElementById("ratingLabel"),
 
-  experienceChips: document.getElementById("experienceChips"),
+  // IMPORTANT:
+  // Existing HTML chips are used directly.
+  experienceChips: [
+    ...document.querySelectorAll("#experienceChips .chip")
+  ],
+
   itemChips: document.getElementById("itemChips"),
 
   note: document.getElementById("note"),
@@ -34,19 +39,37 @@ const els = {
 
   generateButton: document.getElementById("generateButton"),
 
-  preview: document.getElementById("preview"),
+  preview:
+    document.getElementById("reviewPreview") ||
+    document.getElementById("preview"),
+
   reviewText: document.getElementById("reviewText"),
 
   editButton: document.getElementById("editButton"),
   regenerateButton: document.getElementById("regenerateButton"),
   googleButton: document.getElementById("googleButton"),
 
-  socialButtons: document.getElementById("socialButtons")
+  socialButtons: [
+    ...document.querySelectorAll("[data-social]")
+  ]
 };
 
 // ============================================================
-// FALLBACK REVIEW DATA
-// Used only if Gemini API is unavailable.
+// RATING LABELS
+// ============================================================
+
+const ratingLabels = {
+  0: "Tap a star to rate",
+  1: "Not great",
+  2: "Could be better",
+  3: "Good",
+  4: "Really good",
+  5: "Loved it!"
+};
+
+// ============================================================
+// FALLBACK REVIEW
+// Used only if Gemini is unavailable
 // ============================================================
 
 const ratingTemplates = {
@@ -192,18 +215,23 @@ function escapeText(value) {
 
 function randomItem(array) {
   if (!array || !array.length) return "";
-  return array[Math.floor(Math.random() * array.length)];
+  return array[
+    Math.floor(Math.random() * array.length)
+  ];
 }
 
 // ============================================================
-// CONFIG
+// CAFE CONFIG
 // ============================================================
 
 function applyCafeConfig() {
-  const config = window.CAFE_CONFIG || {};
+
+  const config =
+    window.CAFE_CONFIG || {};
 
   if (els.cafeName) {
-    els.cafeName.textContent = config.name || "Cafe";
+    els.cafeName.textContent =
+      config.name || "Cafe";
   }
 
   if (els.location) {
@@ -221,9 +249,20 @@ function applyCafeConfig() {
       `Follow ${config.name || "us"}`;
   }
 
-  if (els.brandMark && config.logo) {
-    els.brandMark.src = config.logo;
-    els.brandMark.style.display = "block";
+  // ----------------------------------------------------------
+  // LOGO
+  // ----------------------------------------------------------
+
+  if (
+    els.brandMark &&
+    config.logo
+  ) {
+    if (
+      els.brandMark.tagName === "IMG"
+    ) {
+      els.brandMark.src =
+        config.logo;
+    }
   }
 
   // ----------------------------------------------------------
@@ -231,130 +270,196 @@ function applyCafeConfig() {
   // ----------------------------------------------------------
 
   if (els.itemChips) {
+
     els.itemChips.innerHTML = "";
 
-    const menuItems = Array.isArray(config.menuItems)
-      ? config.menuItems
-      : [];
+    const menuItems =
+      Array.isArray(config.menuItems)
+        ? config.menuItems
+        : [];
 
     menuItems.forEach(item => {
-      const button = document.createElement("button");
+
+      const button =
+        document.createElement("button");
 
       button.type = "button";
-      button.className = "chip item-chip";
+
+      button.className =
+        "chip";
+
+      button.dataset.value =
+        item.name || "";
 
       button.innerHTML = `
-        <span>${item.icon || "☕"}</span>
+        <span>${item.icon || "•"}</span>
         <span>${item.name || ""}</span>
       `;
 
-      button.addEventListener("click", () => {
-        button.classList.toggle("active");
+      button.addEventListener(
+        "click",
+        () => toggleChip(button)
+      );
 
-        const name = item.name || "";
+      els.itemChips.appendChild(
+        button
+      );
+    });
+  }
 
-        if (state.items.includes(name)) {
-          state.items = state.items.filter(
-            value => value !== name
-          );
-        } else {
-          state.items.push(name);
+  // ----------------------------------------------------------
+  // SOCIAL
+  // ----------------------------------------------------------
+
+  const social =
+    config.social || {};
+
+  els.socialButtons.forEach(button => {
+
+    const platform =
+      button.dataset.social;
+
+    const url =
+      social[platform] || "#";
+
+    button.href = url;
+
+    if (url === "#") {
+
+      button.addEventListener(
+        "click",
+        event =>
+          event.preventDefault()
+      );
+
+    } else {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          logEvent({
+            event: "social_click",
+            platform: platform
+          });
+
         }
-
-        syncState();
-      });
-
-      els.itemChips.appendChild(button);
-    });
-  }
-
-  // ----------------------------------------------------------
-  // SOCIAL LINKS
-  // ----------------------------------------------------------
-
-  if (els.socialButtons) {
-    const social = config.social || {};
-
-    els.socialButtons.innerHTML = "";
-
-    Object.entries(social).forEach(([platform, url]) => {
-      if (!url) return;
-
-      const button = document.createElement("a");
-
-      button.href = url;
-      button.target = "_blank";
-      button.rel = "noopener noreferrer";
-      button.className = "social-button";
-
-      button.textContent =
-        platform.charAt(0).toUpperCase() +
-        platform.slice(1);
-
-      button.addEventListener("click", () => {
-        logEvent({
-          event: "social_click",
-          platform: platform
-        });
-      });
-
-      els.socialButtons.appendChild(button);
-    });
-  }
+      );
+    }
+  });
 }
 
 // ============================================================
-// STATE
+// GET SELECTED CHIPS
+// ============================================================
+
+function getSelected(chips) {
+
+  return chips
+    .filter(chip =>
+      chip.classList.contains("selected")
+    )
+    .map(chip =>
+      chip.dataset.value ||
+      chip.textContent.trim().toLowerCase()
+    );
+}
+
+// ============================================================
+// SYNC STATE
 // ============================================================
 
 function syncState() {
-  state.note = escapeText(
-    els.note ? els.note.value : ""
-  );
+
+  state.experiences =
+    getSelected(
+      els.experienceChips
+    );
+
+  const itemElements =
+    els.itemChips
+      ? [
+          ...els.itemChips.querySelectorAll(
+            ".chip"
+          )
+        ]
+      : [];
+
+  state.items =
+    getSelected(itemElements);
+
+  state.note =
+    escapeText(
+      els.note
+        ? els.note.value
+        : ""
+    );
 }
 
 // ============================================================
 // RATING
 // ============================================================
 
-function setRating(rating) {
-  state.rating = Number(rating) || 0;
+function setRating(value) {
 
-  els.stars.forEach((star, index) => {
-    const value = index + 1;
+  state.rating =
+    Number(value) || 0;
+
+  els.stars.forEach(star => {
+
+    const rating =
+      Number(
+        star.dataset.rating
+      );
 
     star.classList.toggle(
       "active",
-      value <= state.rating
-    );
-
-    star.setAttribute(
-      "aria-checked",
-      value === state.rating ? "true" : "false"
+      rating <= state.rating
     );
   });
 
   if (els.ratingLabel) {
-    const labels = {
-      0: "Select your rating",
-      1: "Very poor",
-      2: "Needs improvement",
-      3: "Good",
-      4: "Very good",
-      5: "Excellent"
-    };
 
     els.ratingLabel.textContent =
-      labels[state.rating] || "Select your rating";
+      ratingLabels[state.rating] ||
+      "Tap a star to rate";
   }
 }
 
 // ============================================================
-// FALLBACK LOCAL REVIEW GENERATOR
+// CHIP TOGGLE
+// ============================================================
+
+function toggleChip(chip) {
+
+  if (!chip) return;
+
+  chip.classList.toggle(
+    "selected"
+  );
+
+  // Some old CSS may use active.
+  // Keep both classes synchronized.
+  chip.classList.toggle(
+    "active",
+    chip.classList.contains(
+      "selected"
+    )
+  );
+
+  syncState();
+}
+
+// ============================================================
+// FALLBACK REVIEW
 // ============================================================
 
 function buildReview() {
-  const config = window.CAFE_CONFIG || {};
+
+  syncState();
+
+  const config =
+    window.CAFE_CONFIG || {};
 
   const cafe =
     config.name || "the cafe";
@@ -362,41 +467,59 @@ function buildReview() {
   const rating =
     state.rating || 5;
 
-  const baseTemplate =
+  let review =
     randomItem(
       ratingTemplates[rating] ||
       ratingTemplates[5]
-    );
-
-  let review =
-    baseTemplate.replace(
+    ).replace(
       "{cafe}",
       cafe
     );
 
-  const selectedExperiences =
-    state.experiences || [];
+  // Selected experiences
 
-  selectedExperiences.forEach(key => {
-    if (
-      experiencePhrases[key] &&
-      experiencePhrases[key][rating]
-    ) {
-      review +=
-        " " +
-        experiencePhrases[key][rating];
+  state.experiences.forEach(
+    experience => {
+
+      if (
+        experiencePhrases[
+          experience
+        ] &&
+        experiencePhrases[
+          experience
+        ][rating]
+      ) {
+
+        review +=
+          " " +
+          experiencePhrases[
+            experience
+          ][rating];
+      }
     }
-  });
+  );
 
-  if (state.items.length) {
+  // Selected items
+
+  if (
+    state.items.length
+  ) {
+
     review +=
-      ` I also tried ${state.items.join(", ")}.`;
+      ` I also tried ${state.items.join(
+        ", "
+      )}.`;
   }
 
+  // Customer note
+
   if (state.note) {
+
     review +=
       ` ${state.note}`;
   }
+
+  // Closing
 
   review +=
     " " +
@@ -409,184 +532,256 @@ function buildReview() {
 }
 
 // ============================================================
-// DISPLAY GENERATED REVIEW
+// SHOW REVIEW
 // ============================================================
 
-function showGeneratedReview(review) {
+function showGeneratedReview(
+  review
+) {
+
   if (!review) return;
 
-  state.generated = true;
+  state.generated =
+    true;
+
   state.version += 1;
 
   if (els.reviewText) {
-    els.reviewText.textContent = review;
+
+    els.reviewText.textContent =
+      review;
   }
 
   if (els.preview) {
-    els.preview.classList.add("show");
+
+    els.preview.classList.add(
+      "show"
+    );
   }
 
   if (els.editButton) {
-    els.editButton.style.display = "";
+
+    els.editButton.style.display =
+      "";
   }
 
   if (els.regenerateButton) {
-    els.regenerateButton.style.display = "";
+
+    els.regenerateButton.style.display =
+      "";
   }
 
   if (els.googleButton) {
-    els.googleButton.style.display = "";
+
+    els.googleButton.style.display =
+      "";
   }
 }
 
 // ============================================================
-// GEMINI AI REVIEW GENERATOR
+// GEMINI AI
 // ============================================================
 
 function generateAIReview() {
-  return new Promise((resolve, reject) => {
 
-    const config = window.CAFE_CONFIG || {};
+  return new Promise(
+    (resolve, reject) => {
 
-    const endpoint =
-      config.sheetsWebAppUrl;
+      const config =
+        window.CAFE_CONFIG || {};
 
-    if (!endpoint) {
-      reject(
-        new Error(
-          "Apps Script Web App URL is missing."
-        )
-      );
-      return;
-    }
+      const endpoint =
+        config.sheetsWebAppUrl;
 
-    const callbackName =
-      "geminiReviewCallback_" +
-      Date.now() +
-      "_" +
-      Math.random()
-        .toString(36)
-        .slice(2);
+      if (!endpoint) {
 
-    let finished = false;
-
-    const script =
-      document.createElement("script");
-
-    const cleanup = () => {
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
-      }
-
-      try {
-        delete window[callbackName];
-      } catch (error) {
-        window[callbackName] = undefined;
-      }
-    };
-
-    const timeout = setTimeout(() => {
-      if (finished) return;
-
-      finished = true;
-      cleanup();
-
-      reject(
-        new Error(
-          "Gemini request timed out."
-        )
-      );
-    }, 30000);
-
-    window[callbackName] = function(result) {
-      if (finished) return;
-
-      finished = true;
-      clearTimeout(timeout);
-      cleanup();
-
-      if (
-        result &&
-        result.ok &&
-        result.review
-      ) {
-        resolve(
-          String(result.review).trim()
-        );
-      } else {
         reject(
           new Error(
-            result &&
-            result.error
-              ? result.error
-              : "Gemini did not return a review."
+            "Apps Script Web App URL is missing."
           )
         );
+
+        return;
       }
-    };
 
-    const params = new URLSearchParams();
+      const callbackName =
+        "geminiCallback_" +
+        Date.now() +
+        "_" +
+        Math.random()
+          .toString(36)
+          .slice(2);
 
-    params.set(
-      "action",
-      "generate_review"
-    );
+      const script =
+        document.createElement(
+          "script"
+        );
 
-    params.set(
-      "callback",
-      callbackName
-    );
+      let finished =
+        false;
 
-    params.set(
-      "cafe",
-      config.name || "Cafe"
-    );
+      function cleanup() {
 
-    params.set(
-      "rating",
-      String(state.rating || 0)
-    );
+        if (
+          script.parentNode
+        ) {
+          script.parentNode.removeChild(
+            script
+          );
+        }
 
-    params.set(
-      "experiences",
-      JSON.stringify(
-        state.experiences || []
-      )
-    );
+        try {
+          delete window[
+            callbackName
+          ];
+        } catch (error) {
+          window[
+            callbackName
+          ] = undefined;
+        }
+      }
 
-    params.set(
-      "items",
-      JSON.stringify(
-        state.items || []
-      )
-    );
+      const timeout =
+        setTimeout(
+          () => {
 
-    params.set(
-      "note",
-      state.note || ""
-    );
+            if (finished)
+              return;
 
-    script.src =
-      endpoint +
-      (endpoint.includes("?") ? "&" : "?") +
-      params.toString();
+            finished = true;
 
-    script.onerror = () => {
-      if (finished) return;
+            cleanup();
 
-      finished = true;
-      clearTimeout(timeout);
-      cleanup();
+            reject(
+              new Error(
+                "Gemini request timed out."
+              )
+            );
 
-      reject(
-        new Error(
-          "Could not connect to the AI service."
+          },
+          30000
+        );
+
+      window[
+        callbackName
+      ] = function(result) {
+
+        if (finished)
+          return;
+
+        finished = true;
+
+        clearTimeout(
+          timeout
+        );
+
+        cleanup();
+
+        if (
+          result &&
+          result.ok &&
+          result.review
+        ) {
+
+          resolve(
+            String(
+              result.review
+            ).trim()
+          );
+
+        } else {
+
+          reject(
+            new Error(
+              result &&
+              result.error
+                ? result.error
+                : "Gemini did not return a review."
+            )
+          );
+        }
+      };
+
+      const params =
+        new URLSearchParams();
+
+      params.set(
+        "action",
+        "generate_review"
+      );
+
+      params.set(
+        "callback",
+        callbackName
+      );
+
+      params.set(
+        "cafe",
+        config.name ||
+        "Cafe"
+      );
+
+      params.set(
+        "rating",
+        String(
+          state.rating || 0
         )
       );
-    };
 
-    document.body.appendChild(script);
-  });
+      params.set(
+        "experiences",
+        JSON.stringify(
+          state.experiences || []
+        )
+      );
+
+      params.set(
+        "items",
+        JSON.stringify(
+          state.items || []
+        )
+      );
+
+      params.set(
+        "note",
+        state.note || ""
+      );
+
+      script.src =
+        endpoint +
+        (
+          endpoint.includes("?")
+            ? "&"
+            : "?"
+        ) +
+        params.toString();
+
+      script.onerror =
+        () => {
+
+          if (finished)
+            return;
+
+          finished = true;
+
+          clearTimeout(
+            timeout
+          );
+
+          cleanup();
+
+          reject(
+            new Error(
+              "Could not connect to the AI service."
+            )
+          );
+        };
+
+      document.body.appendChild(
+        script
+      );
+    }
+  );
 }
 
 // ============================================================
@@ -598,18 +793,39 @@ async function generateReview() {
   syncState();
 
   if (!state.rating) {
-    alert(
-      "Please select your rating first."
-    );
+
+    if (els.ratingLabel) {
+
+      els.ratingLabel.textContent =
+        "Please choose a rating first.";
+    }
+
     return;
   }
 
-  if (
-    els.generateButton
-  ) {
-    els.generateButton.disabled = true;
-    els.generateButton.textContent =
-      "Creating your review...";
+  if (els.generateButton) {
+
+    els.generateButton.disabled =
+      true;
+
+    els.generateButton.classList.add(
+      "loading"
+    );
+
+    const label =
+      els.generateButton.querySelector(
+        "span:nth-child(2)"
+      );
+
+    if (label) {
+
+      label.textContent =
+        "Creating your review...";
+    } else {
+
+      els.generateButton.textContent =
+        "Creating your review...";
+    }
   }
 
   try {
@@ -617,14 +833,25 @@ async function generateReview() {
     const review =
       await generateAIReview();
 
-    showGeneratedReview(review);
+    showGeneratedReview(
+      review
+    );
 
     logEvent({
-      event: "review_generated",
-      rating: state.rating,
-      experiences: state.experiences,
-      items: state.items,
-      review: review
+      event:
+        "review_generated",
+
+      rating:
+        state.rating,
+
+      experiences:
+        state.experiences,
+
+      items:
+        state.items,
+
+      review:
+        review
     });
 
   } catch (error) {
@@ -634,30 +861,63 @@ async function generateReview() {
       error
     );
 
-    // --------------------------------------------------------
-    // FALLBACK
-    // --------------------------------------------------------
+    // Gemini failed → local fallback
 
     const fallback =
       buildReview();
 
-    showGeneratedReview(fallback);
+    showGeneratedReview(
+      fallback
+    );
 
     logEvent({
-      event: "review_generated_fallback",
-      rating: state.rating,
-      experiences: state.experiences,
-      items: state.items,
-      review: fallback,
-      error: String(error)
+      event:
+        "review_generated_fallback",
+
+      rating:
+        state.rating,
+
+      experiences:
+        state.experiences,
+
+      items:
+        state.items,
+
+      review:
+        fallback,
+
+      error:
+        String(error)
     });
 
   } finally {
 
-    if (els.generateButton) {
-      els.generateButton.disabled = false;
-      els.generateButton.textContent =
-        "Create My Review";
+    if (
+      els.generateButton
+    ) {
+
+      els.generateButton.disabled =
+        false;
+
+      els.generateButton.classList.remove(
+        "loading"
+      );
+
+      const label =
+        els.generateButton.querySelector(
+          "span:nth-child(2)"
+        );
+
+      if (label) {
+
+        label.textContent =
+          "Create My Review";
+
+      } else {
+
+        els.generateButton.textContent =
+          "Create My Review";
+      }
     }
   }
 }
@@ -671,16 +931,23 @@ async function regenerateReview() {
   syncState();
 
   if (!state.rating) {
-    alert(
-      "Please select your rating first."
-    );
+
+    if (els.ratingLabel) {
+
+      els.ratingLabel.textContent =
+        "Please choose a rating first.";
+    }
+
     return;
   }
 
   if (
     els.regenerateButton
   ) {
-    els.regenerateButton.disabled = true;
+
+    els.regenerateButton.disabled =
+      true;
+
     els.regenerateButton.textContent =
       "Regenerating...";
   }
@@ -690,14 +957,25 @@ async function regenerateReview() {
     const review =
       await generateAIReview();
 
-    showGeneratedReview(review);
+    showGeneratedReview(
+      review
+    );
 
     logEvent({
-      event: "review_regenerated",
-      rating: state.rating,
-      experiences: state.experiences,
-      items: state.items,
-      review: review
+      event:
+        "review_regenerated",
+
+      rating:
+        state.rating,
+
+      experiences:
+        state.experiences,
+
+      items:
+        state.items,
+
+      review:
+        review
     });
 
   } catch (error) {
@@ -710,15 +988,28 @@ async function regenerateReview() {
     const fallback =
       buildReview();
 
-    showGeneratedReview(fallback);
+    showGeneratedReview(
+      fallback
+    );
 
     logEvent({
-      event: "review_regenerated_fallback",
-      rating: state.rating,
-      experiences: state.experiences,
-      items: state.items,
-      review: fallback,
-      error: String(error)
+      event:
+        "review_regenerated_fallback",
+
+      rating:
+        state.rating,
+
+      experiences:
+        state.experiences,
+
+      items:
+        state.items,
+
+      review:
+        fallback,
+
+      error:
+        String(error)
     });
 
   } finally {
@@ -726,7 +1017,10 @@ async function regenerateReview() {
     if (
       els.regenerateButton
     ) {
-      els.regenerateButton.disabled = false;
+
+      els.regenerateButton.disabled =
+        false;
+
       els.regenerateButton.textContent =
         "Regenerate";
     }
@@ -739,61 +1033,81 @@ async function regenerateReview() {
 
 function enableEditing() {
 
-  if (!els.reviewText) return;
+  if (!els.reviewText)
+    return;
 
-  els.reviewText.contentEditable = "true";
-
-  els.reviewText.focus();
+  els.reviewText.contentEditable =
+    "true";
 
   els.reviewText.classList.add(
     "editing"
   );
 
+  els.reviewText.focus();
+
   if (els.editButton) {
+
     els.editButton.textContent =
       "Save Review";
+
+    els.editButton.dataset.editing =
+      "true";
   }
 }
 
 function saveEditing() {
 
-  if (!els.reviewText) return;
+  if (!els.reviewText)
+    return;
 
-  els.reviewText.contentEditable = "false";
+  els.reviewText.contentEditable =
+    "false";
 
   els.reviewText.classList.remove(
     "editing"
   );
 
-  const editedReview =
+  let review =
     els.reviewText.textContent.trim();
 
-  if (!editedReview) {
+  if (!review) {
 
-    const fallback =
+    review =
       buildReview();
 
     els.reviewText.textContent =
-      fallback;
+      review;
   }
 
   if (els.editButton) {
+
     els.editButton.textContent =
       "Edit Review";
+
+    els.editButton.dataset.editing =
+      "false";
   }
 
   logEvent({
-    event: "review_edited",
-    rating: state.rating,
-    experiences: state.experiences,
-    items: state.items,
+    event:
+      "review_edited",
+
+    rating:
+      state.rating,
+
+    experiences:
+      state.experiences,
+
+    items:
+      state.items,
+
     review:
-      els.reviewText.textContent.trim()
+      review
   });
 }
 
 // ============================================================
-// COPY + OPEN GOOGLE
+// COPY REVIEW + OPEN GOOGLE
 // ============================================================
 
 async function continueToGoogle() {
@@ -807,9 +1121,11 @@ async function continueToGoogle() {
       : "";
 
   if (!review) {
+
     alert(
       "Please create a review first."
     );
+
     return;
   }
 
@@ -817,15 +1133,13 @@ async function continueToGoogle() {
     config.googleReviewUrl;
 
   if (!googleUrl) {
+
     alert(
       "Google review link is not configured."
     );
+
     return;
   }
-
-  // ----------------------------------------------------------
-  // COPY REVIEW
-  // ----------------------------------------------------------
 
   try {
 
@@ -834,7 +1148,7 @@ async function continueToGoogle() {
     );
 
     alert(
-      "Review copied! Google Reviews will open now. Paste your review and submit it."
+      "Review copied! Google will open now. Paste your review and submit it."
     );
 
   } catch (error) {
@@ -845,25 +1159,26 @@ async function continueToGoogle() {
     );
 
     alert(
-      "Google Reviews will open now. Please copy your review manually."
+      "Google will open now. Please copy your review manually."
     );
   }
 
-  // ----------------------------------------------------------
-  // LOG GOOGLE CLICK
-  // ----------------------------------------------------------
-
   logEvent({
-    event: "google_click",
-    rating: state.rating,
-    experiences: state.experiences,
-    items: state.items,
-    review: review
-  });
+    event:
+      "google_click",
 
-  // ----------------------------------------------------------
-  // OPEN GOOGLE
-  // ----------------------------------------------------------
+    rating:
+      state.rating,
+
+    experiences:
+      state.experiences,
+
+    items:
+      state.items,
+
+    review:
+      review
+  });
 
   window.open(
     googleUrl,
@@ -873,10 +1188,12 @@ async function continueToGoogle() {
 }
 
 // ============================================================
-// GOOGLE SHEETS EVENT LOGGER
+// GOOGLE SHEETS LOGGER
 // ============================================================
 
-function logEvent(extraData = {}) {
+function logEvent(
+  extraData = {}
+) {
 
   const config =
     window.CAFE_CONFIG || {};
@@ -884,9 +1201,8 @@ function logEvent(extraData = {}) {
   const endpoint =
     config.sheetsWebAppUrl;
 
-  if (!endpoint) {
+  if (!endpoint)
     return;
-  }
 
   const payload = {
 
@@ -922,14 +1238,27 @@ function logEvent(extraData = {}) {
       endpoint,
       {
         method: "POST",
+
         mode: "no-cors",
+
         headers: {
           "Content-Type":
             "text/plain;charset=utf-8"
         },
+
         body:
-          JSON.stringify(payload)
+          JSON.stringify(
+            payload
+          ),
+
+        keepalive: true
       }
+    ).catch(
+      error =>
+        console.warn(
+          "Logging error:",
+          error
+        )
     );
 
   } catch (error) {
@@ -942,96 +1271,33 @@ function logEvent(extraData = {}) {
 }
 
 // ============================================================
-// EXPERIENCE CHIPS
+// SETUP EXISTING EXPERIENCE CHIPS
 // ============================================================
 
 function setupExperienceChips() {
 
-  if (!els.experienceChips) {
-    return;
-  }
+  // IMPORTANT:
+  // Do NOT create new buttons here.
+  // The buttons already exist in index.html.
 
-  const experiences = [
-    {
-      key: "food",
-      label: "Food"
-    },
-    {
-      key: "drinks",
-      label: "Drinks"
-    },
-    {
-      key: "ambience",
-      label: "Ambience"
-    },
-    {
-      key: "service",
-      label: "Service"
-    },
-    {
-      key: "staff",
-      label: "Staff"
-    },
-    {
-      key: "value",
-      label: "Value"
-    }
-  ];
+  els.experienceChips.forEach(
+    chip => {
 
-  els.experienceChips.innerHTML = "";
+      chip.addEventListener(
+        "click",
+        () => {
 
-  experiences.forEach(item => {
+          toggleChip(chip);
 
-    const button =
-      document.createElement("button");
-
-    button.type = "button";
-
-    button.className =
-      "chip experience-chip";
-
-    button.textContent =
-      item.label;
-
-    button.addEventListener(
-      "click",
-      () => {
-
-        button.classList.toggle(
-          "active"
-        );
-
-        if (
-          state.experiences.includes(
-            item.key
-          )
-        ) {
-
-          state.experiences =
-            state.experiences.filter(
-              value =>
-                value !== item.key
-            );
-
-        } else {
-
-          state.experiences.push(
-            item.key
-          );
         }
+      );
 
-        syncState();
-      }
-    );
-
-    els.experienceChips.appendChild(
-      button
-    );
-  });
+    }
+  );
 }
 
 // ============================================================
-// EVENT LISTENERS
+// EVENT SETUP
 // ============================================================
 
 function setupEvents() {
@@ -1041,14 +1307,21 @@ function setupEvents() {
   // ----------------------------------------------------------
 
   els.stars.forEach(
-    (star, index) => {
+    star => {
 
       star.addEventListener(
         "click",
         () => {
-          setRating(index + 1);
+
+          setRating(
+            Number(
+              star.dataset.rating
+            )
+          );
+
         }
       );
+
     }
   );
 
@@ -1064,11 +1337,14 @@ function setupEvents() {
 
         syncState();
 
-        if (els.charCount) {
+        if (
+          els.charCount
+        ) {
 
           els.charCount.textContent =
-            `${els.note.value.length}`;
+            els.note.value.length;
         }
+
       }
     );
   }
@@ -1077,7 +1353,9 @@ function setupEvents() {
   // GENERATE
   // ----------------------------------------------------------
 
-  if (els.generateButton) {
+  if (
+    els.generateButton
+  ) {
 
     els.generateButton.addEventListener(
       "click",
@@ -1086,34 +1364,12 @@ function setupEvents() {
   }
 
   // ----------------------------------------------------------
-  // EDIT
-  // ----------------------------------------------------------
-
-  if (els.editButton) {
-
-    els.editButton.addEventListener(
-      "click",
-      () => {
-
-        const editing =
-          els.reviewText &&
-          els.reviewText.contentEditable ===
-            "true";
-
-        if (editing) {
-          saveEditing();
-        } else {
-          enableEditing();
-        }
-      }
-    );
-  }
-
-  // ----------------------------------------------------------
   // REGENERATE
   // ----------------------------------------------------------
 
-  if (els.regenerateButton) {
+  if (
+    els.regenerateButton
+  ) {
 
     els.regenerateButton.addEventListener(
       "click",
@@ -1122,10 +1378,41 @@ function setupEvents() {
   }
 
   // ----------------------------------------------------------
+  // EDIT
+  // ----------------------------------------------------------
+
+  if (
+    els.editButton
+  ) {
+
+    els.editButton.addEventListener(
+      "click",
+      () => {
+
+        if (
+          els.reviewText &&
+          els.reviewText.contentEditable ===
+            "true"
+        ) {
+
+          saveEditing();
+
+        } else {
+
+          enableEditing();
+        }
+
+      }
+    );
+  }
+
+  // ----------------------------------------------------------
   // GOOGLE
   // ----------------------------------------------------------
 
-  if (els.googleButton) {
+  if (
+    els.googleButton
+  ) {
 
     els.googleButton.addEventListener(
       "click",
