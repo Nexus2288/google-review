@@ -1111,28 +1111,81 @@ function saveEditing() {
 // ============================================================
 
 async function continueToGoogle() {
-  const review = elements.reviewText.value.trim();
+
+  const config =
+    window.CAFE_CONFIG || {};
+
+  const review =
+    els.reviewText
+      ? els.reviewText.textContent.trim()
+      : "";
 
   if (!review) {
-    alert("Please generate a review first.");
+    alert("Please create a review first.");
     return;
   }
 
-  try {
-    await navigator.clipboard.writeText(review);
-  } catch (error) {
-    console.error("Clipboard copy failed:", error);
+  const googleUrl =
+    config.googleReviewUrl;
+
+  if (!googleUrl) {
+    alert("Google review link is not configured.");
+    return;
   }
 
-  window.open(config.googleReviewUrl, "_blank");
+  // Open a blank tab IMMEDIATELY while the click is active.
+  // This prevents popup blocking.
+  const googleWindow =
+    window.open(
+      "about:blank",
+      "_blank"
+    );
 
+  if (!googleWindow) {
+    alert(
+      "Google could not be opened. Please allow pop-ups for this site."
+    );
+    return;
+  }
+
+  // Copy review
+  try {
+
+    await navigator.clipboard.writeText(
+      review
+    );
+
+  } catch (error) {
+
+    console.warn(
+      "Clipboard failed:",
+      error
+    );
+
+  }
+
+  // Log Google click
+  logEvent({
+    event: "google_click",
+    rating: state.rating,
+    experiences: state.experiences,
+    items: state.items,
+    review: review
+  });
+
+  // Send the already-opened tab to Google
+  googleWindow.location.href =
+    googleUrl;
+
+  // Show confirmation
   setTimeout(() => {
+
     alert(
       "Review copied!\n\nGoogle Reviews has been opened. Paste your review and submit it."
     );
-  }, 300);
-}
 
+  }, 500);
+}
 
 // ============================================================
 // GOOGLE SHEETS LOGGING
