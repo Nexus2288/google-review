@@ -1,9 +1,6 @@
-/*
-  CAFE REVIEW SYSTEM
-  Frontend logic + local review generator.
-
-  No paid AI API is used in this version.
-*/
+// ============================================================
+// CAFE REVIEW SYSTEM - GEMINI AI VERSION
+// ============================================================
 
 const state = {
   rating: 0,
@@ -15,495 +12,1147 @@ const state = {
   scanId: createScanId()
 };
 
+// ============================================================
+// ELEMENTS
+// ============================================================
+
 const els = {
   cafeName: document.getElementById("cafeName"),
-  cafeLocation: document.getElementById("cafeLocation"),
+  location: document.getElementById("location"),
   brandMark: document.getElementById("brandMark"),
-  footerCafeName: document.getElementById("footerCafeName"),
+  footer: document.getElementById("footer"),
   socialTitle: document.getElementById("socialTitle"),
 
   stars: [...document.querySelectorAll(".star")],
   ratingLabel: document.getElementById("ratingLabel"),
-  experienceChips: [...document.querySelectorAll("#experienceChips .chip")],
+
+  experienceChips: document.getElementById("experienceChips"),
   itemChips: document.getElementById("itemChips"),
+
   note: document.getElementById("note"),
   charCount: document.getElementById("charCount"),
 
   generateButton: document.getElementById("generateButton"),
-  preview: document.getElementById("reviewPreview"),
+
+  preview: document.getElementById("preview"),
   reviewText: document.getElementById("reviewText"),
+
   editButton: document.getElementById("editButton"),
   regenerateButton: document.getElementById("regenerateButton"),
   googleButton: document.getElementById("googleButton"),
 
-  socialButtons: [...document.querySelectorAll("[data-social]")]
+  socialButtons: document.getElementById("socialButtons")
 };
 
-const ratingLabels = {
-  1: "Not great",
-  2: "Could be better",
-  3: "Good",
-  4: "Really good",
-  5: "Loved it!"
-};
+// ============================================================
+// FALLBACK REVIEW DATA
+// Used only if Gemini API is unavailable.
+// ============================================================
 
-const templates = {
+const ratingTemplates = {
   5: [
-    "Had a lovely experience at {cafe}.",
-    "Really enjoyed my visit to {cafe}.",
-    "Had such a nice time at {cafe}.",
-    "Loved my experience at {cafe}."
+    "I had a really good experience at {cafe}.",
+    "Really enjoyed my experience at {cafe}.",
+    "Had a wonderful time at {cafe}.",
+    "Great experience overall at {cafe}."
   ],
+
   4: [
-    "Had a really nice experience at {cafe}.",
-    "Really enjoyed my visit to {cafe}.",
-    "Had a very pleasant experience at {cafe}.",
-    "Really liked my time at {cafe}."
+    "I had a very good experience at {cafe}.",
+    "Overall, I had a really good experience at {cafe}.",
+    "I enjoyed my visit to {cafe}.",
+    "Had a nice experience at {cafe}."
   ],
+
   3: [
-    "Had a good experience at {cafe}.",
-    "Overall, I had a good visit to {cafe}.",
-    "Had a pleasant visit to {cafe}.",
-    "My visit to {cafe} was good overall."
+    "Overall, I had a decent experience at {cafe}.",
+    "My experience at {cafe} was good overall.",
+    "It was a fairly good experience at {cafe}.",
+    "I had an okay experience at {cafe}."
   ],
+
   2: [
-    "Visited {cafe} and wanted to share some feedback.",
-    "I visited {cafe} and had a mixed experience.",
-    "Had an average experience at {cafe}.",
-    "My visit to {cafe} was okay overall."
+    "My experience at {cafe} was average.",
+    "The overall experience at {cafe} could have been better.",
+    "I had a mixed experience at {cafe}.",
+    "There were some things that could be improved at {cafe}."
   ],
+
   1: [
-    "I visited {cafe} and wanted to share some honest feedback.",
-    "I had a disappointing experience at {cafe}.",
-    "My visit to {cafe} did not meet my expectations.",
-    "I wanted to share my experience after visiting {cafe}."
+    "My experience at {cafe} was disappointing.",
+    "Unfortunately, my experience at {cafe} was not very good.",
+    "I was not very satisfied with my experience at {cafe}.",
+    "There are a few things that could be improved at {cafe}."
   ]
 };
 
 const experiencePhrases = {
-  Food: [
-    "The food was really enjoyable",
-    "I especially liked the food",
-    "The food stood out for me"
-  ],
-  Drinks: [
-    "The drinks were refreshing",
-    "I really enjoyed the drinks",
-    "The drinks were a nice highlight"
-  ],
-  Ambience: [
-    "The ambience was cozy and inviting",
-    "I really liked the ambience",
-    "The atmosphere felt comfortable and welcoming"
-  ],
-  Service: [
-    "The service was quick and smooth",
-    "The service was attentive",
-    "The service made the visit comfortable"
-  ],
-  Staff: [
-    "The staff were friendly",
-    "The staff were welcoming and helpful",
-    "Everyone was friendly and polite"
-  ],
-  Value: [
-    "The overall value felt good",
-    "The experience felt worth it",
-    "I felt the experience offered good value"
-  ]
-};
+  food: {
+    5: "The food was really enjoyable.",
+    4: "The food was quite good.",
+    3: "The food was decent.",
+    2: "The food could have been better.",
+    1: "The food did not meet my expectations."
+  },
 
-const itemPhrases = [
-  "I tried {items} and enjoyed it",
-  "I had {items} and really liked it",
-  "The {items} I tried was a nice choice",
-  "I especially enjoyed the {items}"
-];
+  drinks: {
+    5: "The drinks were refreshing and enjoyable.",
+    4: "The drinks were quite good.",
+    3: "The drinks were decent.",
+    2: "The drinks could have been better.",
+    1: "The drinks were not quite what I expected."
+  },
+
+  ambience: {
+    5: "The ambience was comfortable and pleasant.",
+    4: "The ambience was nice and comfortable.",
+    3: "The ambience was decent.",
+    2: "The ambience could use some improvement.",
+    1: "The ambience was not really to my liking."
+  },
+
+  service: {
+    5: "The service was smooth and friendly.",
+    4: "The service was good.",
+    3: "The service was okay.",
+    2: "The service could have been better.",
+    1: "The service was not as good as expected."
+  },
+
+  staff: {
+    5: "The staff were friendly and helpful.",
+    4: "The staff were polite and helpful.",
+    3: "The staff were okay.",
+    2: "The staff could have been more attentive.",
+    1: "The staff experience could have been better."
+  },
+
+  value: {
+    5: "The overall value felt great.",
+    4: "The overall value was good.",
+    3: "The value was reasonable.",
+    2: "The value could have been better.",
+    1: "I felt the overall value could be improved."
+  }
+};
 
 const closings = {
-  positive: [
-    "Would definitely visit again.",
-    "Would be happy to come back.",
-    "Looking forward to visiting again.",
-    "I would happily come back."
+  5: [
+    "Would definitely consider coming back.",
+    "I would happily visit again.",
+    "Overall, a lovely experience.",
+    "Would recommend giving it a try."
   ],
-  neutral: [
-    "Overall, it was a pleasant visit.",
-    "Overall, it was a decent experience.",
-    "I hope to have an even better experience next time."
+
+  4: [
+    "I would definitely consider visiting again.",
+    "Overall, a good experience.",
+    "Would be happy to visit again.",
+    "Worth trying if you're around."
   ],
-  negative: [
+
+  3: [
+    "Overall, it was an okay experience.",
+    "There is room for improvement, but it was decent.",
+    "I may visit again sometime.",
+    "Overall, a fairly decent experience."
+  ],
+
+  2: [
+    "Hopefully, the experience improves in the future.",
+    "There is definitely some room for improvement.",
+    "I hope the experience gets better with time.",
+    "Some improvements would make the experience better."
+  ],
+
+  1: [
     "I hope the experience improves in the future.",
-    "Sharing this feedback in the hope it helps improve the experience."
+    "There is quite a bit of room for improvement.",
+    "Hopefully, the issues are addressed in the future.",
+    "I hope things improve for future visits."
   ]
 };
 
-function createScanId() {
-  return "SCN-" + Date.now().toString(36).toUpperCase() + "-" +
-    Math.random().toString(36).slice(2, 7).toUpperCase();
-}
+// ============================================================
+// HELPERS
+// ============================================================
 
-function pick(list, offset = 0) {
-  if (!list || !list.length) return "";
-  return list[(state.version + offset) % list.length];
+function createScanId() {
+  return (
+    "SCAN-" +
+    Date.now().toString(36) +
+    "-" +
+    Math.random().toString(36).slice(2, 8)
+  ).toUpperCase();
 }
 
 function escapeText(value) {
-  return String(value ?? "").trim();
+  return String(value || "").trim();
 }
+
+function randomItem(array) {
+  if (!array || !array.length) return "";
+  return array[Math.floor(Math.random() * array.length)];
+}
+
+// ============================================================
+// CONFIG
+// ============================================================
 
 function applyCafeConfig() {
-  const cafe = window.CAFE_CONFIG || {};
+  const config = window.CAFE_CONFIG || {};
 
-  const name = cafe.name || "Your Cafe";
-  const location = cafe.location || "";
-
-  els.cafeName.textContent = name;
-  els.cafeLocation.textContent = location;
-  els.footerCafeName.textContent = name;
-  els.socialTitle.textContent = `Follow ${name}`;
-
-  if (cafe.logo) {
-    const img = document.createElement("img");
-    img.src = cafe.logo;
-    img.alt = `${name} logo`;
-    img.onerror = () => img.remove();
-    els.brandMark.textContent = "";
-    els.brandMark.appendChild(img);
-  } else {
-    const initials = name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map(word => word[0])
-      .join("")
-      .toUpperCase();
-
-    els.brandMark.textContent = initials || "CA";
+  if (els.cafeName) {
+    els.cafeName.textContent = config.name || "Cafe";
   }
 
-  const items = Array.isArray(cafe.menuItems) ? cafe.menuItems : [];
+  if (els.location) {
+    els.location.textContent =
+      config.location || "";
+  }
 
-  els.itemChips.innerHTML = "";
+  if (els.footer) {
+    els.footer.textContent =
+      config.name || "Cafe";
+  }
 
-  items.forEach(item => {
-    const button = document.createElement("button");
-    button.className = "chip";
-    button.type = "button";
-    button.dataset.value = item.name;
-    button.innerHTML = `${item.icon || "•"} <span>${item.name}</span>`;
-    button.addEventListener("click", () => toggleChip(button));
-    els.itemChips.appendChild(button);
-  });
+  if (els.socialTitle) {
+    els.socialTitle.textContent =
+      `Follow ${config.name || "us"}`;
+  }
 
-  els.socialButtons.forEach(button => {
-    const platform = button.dataset.social;
-    const url = cafe.social?.[platform] || "#";
-    button.href = url;
-    button.dataset.url = url;
+  if (els.brandMark && config.logo) {
+    els.brandMark.src = config.logo;
+    els.brandMark.style.display = "block";
+  }
 
-    if (url === "#") {
-      button.classList.add("disabled-social");
-      button.addEventListener("click", event => event.preventDefault());
-    } else {
-      button.addEventListener("click", () => logEvent("social_click", {
-        platform
-      }));
-    }
-  });
+  // ----------------------------------------------------------
+  // MENU ITEMS
+  // ----------------------------------------------------------
+
+  if (els.itemChips) {
+    els.itemChips.innerHTML = "";
+
+    const menuItems = Array.isArray(config.menuItems)
+      ? config.menuItems
+      : [];
+
+    menuItems.forEach(item => {
+      const button = document.createElement("button");
+
+      button.type = "button";
+      button.className = "chip item-chip";
+
+      button.innerHTML = `
+        <span>${item.icon || "☕"}</span>
+        <span>${item.name || ""}</span>
+      `;
+
+      button.addEventListener("click", () => {
+        button.classList.toggle("active");
+
+        const name = item.name || "";
+
+        if (state.items.includes(name)) {
+          state.items = state.items.filter(
+            value => value !== name
+          );
+        } else {
+          state.items.push(name);
+        }
+
+        syncState();
+      });
+
+      els.itemChips.appendChild(button);
+    });
+  }
+
+  // ----------------------------------------------------------
+  // SOCIAL LINKS
+  // ----------------------------------------------------------
+
+  if (els.socialButtons) {
+    const social = config.social || {};
+
+    els.socialButtons.innerHTML = "";
+
+    Object.entries(social).forEach(([platform, url]) => {
+      if (!url) return;
+
+      const button = document.createElement("a");
+
+      button.href = url;
+      button.target = "_blank";
+      button.rel = "noopener noreferrer";
+      button.className = "social-button";
+
+      button.textContent =
+        platform.charAt(0).toUpperCase() +
+        platform.slice(1);
+
+      button.addEventListener("click", () => {
+        logEvent({
+          event: "social_click",
+          platform: platform
+        });
+      });
+
+      els.socialButtons.appendChild(button);
+    });
+  }
 }
 
-function getSelected(chips) {
-  return chips
-    .filter(chip => chip.classList.contains("selected"))
-    .map(chip => chip.dataset.value);
-}
+// ============================================================
+// STATE
+// ============================================================
 
 function syncState() {
-  state.experiences = getSelected(els.experienceChips);
-  state.items = getSelected([...els.itemChips.querySelectorAll(".chip")]);
-  state.note = escapeText(els.note.value);
+  state.note = escapeText(
+    els.note ? els.note.value : ""
+  );
 }
 
-function setRating(value) {
-  state.rating = value;
+// ============================================================
+// RATING
+// ============================================================
 
-  els.stars.forEach(star => {
-    const active = Number(star.dataset.rating) <= value;
-    star.classList.toggle("active", active);
+function setRating(rating) {
+  state.rating = Number(rating) || 0;
+
+  els.stars.forEach((star, index) => {
+    const value = index + 1;
+
+    star.classList.toggle(
+      "active",
+      value <= state.rating
+    );
+
+    star.setAttribute(
+      "aria-checked",
+      value === state.rating ? "true" : "false"
+    );
   });
 
-  els.ratingLabel.textContent = ratingLabels[value] || "Tap a star to rate";
-}
+  if (els.ratingLabel) {
+    const labels = {
+      0: "Select your rating",
+      1: "Very poor",
+      2: "Needs improvement",
+      3: "Good",
+      4: "Very good",
+      5: "Excellent"
+    };
 
-function toggleChip(chip) {
-  chip.classList.toggle("selected");
-  syncState();
-}
-
-function createItemSentence() {
-  if (!state.items.length) return "";
-
-  const selected = state.items.slice(0, 2);
-
-  if (selected.length === 1) {
-    return pick(itemPhrases).replace("{items}", selected[0]);
+    els.ratingLabel.textContent =
+      labels[state.rating] || "Select your rating";
   }
-
-  return pick(itemPhrases, 1)
-    .replace("{items}", `${selected[0]} and ${selected[1]}`);
 }
 
-function createExperienceSentences() {
-  return state.experiences.slice(0, 3).map((experience, index) => {
-    const options = experiencePhrases[experience] || [];
-    return pick(options, index);
-  });
-}
+// ============================================================
+// FALLBACK LOCAL REVIEW GENERATOR
+// ============================================================
 
 function buildReview() {
-  syncState();
+  const config = window.CAFE_CONFIG || {};
 
-  const cafe = window.CAFE_CONFIG?.name || "the cafe";
-  const rating = state.rating || 5;
+  const cafe =
+    config.name || "the cafe";
 
-  const opening = pick(templates[rating] || templates[5])
-    .replace("{cafe}", cafe);
+  const rating =
+    state.rating || 5;
 
-  const parts = [];
+  const baseTemplate =
+    randomItem(
+      ratingTemplates[rating] ||
+      ratingTemplates[5]
+    );
 
-  const itemSentence = createItemSentence();
-  if (itemSentence) parts.push(itemSentence + ".");
+  let review =
+    baseTemplate.replace(
+      "{cafe}",
+      cafe
+    );
 
-  const experienceSentences = createExperienceSentences();
-  if (experienceSentences.length) {
-    parts.push(experienceSentences.join(". ") + ".");
+  const selectedExperiences =
+    state.experiences || [];
+
+  selectedExperiences.forEach(key => {
+    if (
+      experiencePhrases[key] &&
+      experiencePhrases[key][rating]
+    ) {
+      review +=
+        " " +
+        experiencePhrases[key][rating];
+    }
+  });
+
+  if (state.items.length) {
+    review +=
+      ` I also tried ${state.items.join(", ")}.`;
   }
 
   if (state.note) {
-    const cleanNote = state.note.replace(/[.!?]+$/, "");
-    parts.push(
-      cleanNote.charAt(0).toUpperCase() +
-      cleanNote.slice(1) +
-      "."
-    );
+    review +=
+      ` ${state.note}`;
   }
 
-  let closing;
-  if (rating >= 4) closing = pick(closings.positive, 2);
-  else if (rating === 3) closing = pick(closings.neutral, 1);
-  else closing = pick(closings.negative, 1);
+  review +=
+    " " +
+    randomItem(
+      closings[rating] ||
+      closings[5]
+    );
 
-  return `${opening}${parts.length ? " " + parts.join(" ") : ""} ${closing}`;
+  return review.trim();
 }
 
-function showValidation(message) {
-  els.ratingLabel.textContent = message;
-  els.ratingLabel.classList.add("validation-error");
+// ============================================================
+// DISPLAY GENERATED REVIEW
+// ============================================================
 
-  setTimeout(() => {
-    els.ratingLabel.classList.remove("validation-error");
-  }, 1200);
+function showGeneratedReview(review) {
+  if (!review) return;
+
+  state.generated = true;
+  state.version += 1;
+
+  if (els.reviewText) {
+    els.reviewText.textContent = review;
+  }
+
+  if (els.preview) {
+    els.preview.classList.add("show");
+  }
+
+  if (els.editButton) {
+    els.editButton.style.display = "";
+  }
+
+  if (els.regenerateButton) {
+    els.regenerateButton.style.display = "";
+  }
+
+  if (els.googleButton) {
+    els.googleButton.style.display = "";
+  }
 }
 
-function generateReview() {
+// ============================================================
+// GEMINI AI REVIEW GENERATOR
+// ============================================================
+
+function generateAIReview() {
+  return new Promise((resolve, reject) => {
+
+    const config = window.CAFE_CONFIG || {};
+
+    const endpoint =
+      config.sheetsWebAppUrl;
+
+    if (!endpoint) {
+      reject(
+        new Error(
+          "Apps Script Web App URL is missing."
+        )
+      );
+      return;
+    }
+
+    const callbackName =
+      "geminiReviewCallback_" +
+      Date.now() +
+      "_" +
+      Math.random()
+        .toString(36)
+        .slice(2);
+
+    let finished = false;
+
+    const script =
+      document.createElement("script");
+
+    const cleanup = () => {
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+
+      try {
+        delete window[callbackName];
+      } catch (error) {
+        window[callbackName] = undefined;
+      }
+    };
+
+    const timeout = setTimeout(() => {
+      if (finished) return;
+
+      finished = true;
+      cleanup();
+
+      reject(
+        new Error(
+          "Gemini request timed out."
+        )
+      );
+    }, 30000);
+
+    window[callbackName] = function(result) {
+      if (finished) return;
+
+      finished = true;
+      clearTimeout(timeout);
+      cleanup();
+
+      if (
+        result &&
+        result.ok &&
+        result.review
+      ) {
+        resolve(
+          String(result.review).trim()
+        );
+      } else {
+        reject(
+          new Error(
+            result &&
+            result.error
+              ? result.error
+              : "Gemini did not return a review."
+          )
+        );
+      }
+    };
+
+    const params = new URLSearchParams();
+
+    params.set(
+      "action",
+      "generate_review"
+    );
+
+    params.set(
+      "callback",
+      callbackName
+    );
+
+    params.set(
+      "cafe",
+      config.name || "Cafe"
+    );
+
+    params.set(
+      "rating",
+      String(state.rating || 0)
+    );
+
+    params.set(
+      "experiences",
+      JSON.stringify(
+        state.experiences || []
+      )
+    );
+
+    params.set(
+      "items",
+      JSON.stringify(
+        state.items || []
+      )
+    );
+
+    params.set(
+      "note",
+      state.note || ""
+    );
+
+    script.src =
+      endpoint +
+      (endpoint.includes("?") ? "&" : "?") +
+      params.toString();
+
+    script.onerror = () => {
+      if (finished) return;
+
+      finished = true;
+      clearTimeout(timeout);
+      cleanup();
+
+      reject(
+        new Error(
+          "Could not connect to the AI service."
+        )
+      );
+    };
+
+    document.body.appendChild(script);
+  });
+}
+
+// ============================================================
+// CREATE REVIEW
+// ============================================================
+
+async function generateReview() {
+
   syncState();
 
   if (!state.rating) {
-    showValidation("Please choose a rating first.");
-    els.stars[0]?.focus();
+    alert(
+      "Please select your rating first."
+    );
     return;
   }
 
-  state.version += 1;
+  if (
+    els.generateButton
+  ) {
+    els.generateButton.disabled = true;
+    els.generateButton.textContent =
+      "Creating your review...";
+  }
 
-  els.generateButton.classList.add("loading");
-  const label = els.generateButton.querySelector("span:nth-child(2)");
+  try {
 
-  if (label) label.textContent = "Creating your review...";
+    const review =
+      await generateAIReview();
 
-  setTimeout(() => {
-    const review = buildReview();
+    showGeneratedReview(review);
 
-    els.reviewText.textContent = review;
-    els.reviewText.contentEditable = "false";
-    els.reviewText.classList.remove("editing");
-
-    els.preview.classList.add("show");
-    state.generated = true;
-
-    els.editButton.textContent = "✎ Edit";
-    delete els.editButton.dataset.editing;
-
-    els.generateButton.classList.remove("loading");
-
-    if (label) label.textContent = "Create My Review";
-
-    logEvent("review_generated", {
+    logEvent({
+      event: "review_generated",
       rating: state.rating,
       experiences: state.experiences,
       items: state.items,
-      review
+      review: review
     });
 
-    els.preview.scrollIntoView({
-      behavior: "smooth",
-      block: "center"
+  } catch (error) {
+
+    console.error(
+      "Gemini error:",
+      error
+    );
+
+    // --------------------------------------------------------
+    // FALLBACK
+    // --------------------------------------------------------
+
+    const fallback =
+      buildReview();
+
+    showGeneratedReview(fallback);
+
+    logEvent({
+      event: "review_generated_fallback",
+      rating: state.rating,
+      experiences: state.experiences,
+      items: state.items,
+      review: fallback,
+      error: String(error)
     });
-  }, 550);
+
+  } finally {
+
+    if (els.generateButton) {
+      els.generateButton.disabled = false;
+      els.generateButton.textContent =
+        "Create My Review";
+    }
+  }
 }
 
-function regenerateReview() {
-  if (!state.generated) {
-    generateReview();
+// ============================================================
+// REGENERATE
+// ============================================================
+
+async function regenerateReview() {
+
+  syncState();
+
+  if (!state.rating) {
+    alert(
+      "Please select your rating first."
+    );
     return;
   }
 
-  state.version += 1;
+  if (
+    els.regenerateButton
+  ) {
+    els.regenerateButton.disabled = true;
+    els.regenerateButton.textContent =
+      "Regenerating...";
+  }
 
-  els.reviewText.contentEditable = "false";
-  els.reviewText.classList.remove("editing");
-  els.editButton.textContent = "✎ Edit";
-  delete els.editButton.dataset.editing;
+  try {
 
-  els.reviewText.classList.remove("flash");
-  void els.reviewText.offsetWidth;
-  els.reviewText.classList.add("flash");
+    const review =
+      await generateAIReview();
 
-  const review = buildReview();
-  els.reviewText.textContent = review;
+    showGeneratedReview(review);
 
-  logEvent("review_regenerated", {
-    rating: state.rating,
-    review
-  });
+    logEvent({
+      event: "review_regenerated",
+      rating: state.rating,
+      experiences: state.experiences,
+      items: state.items,
+      review: review
+    });
+
+  } catch (error) {
+
+    console.error(
+      "Gemini regenerate error:",
+      error
+    );
+
+    const fallback =
+      buildReview();
+
+    showGeneratedReview(fallback);
+
+    logEvent({
+      event: "review_regenerated_fallback",
+      rating: state.rating,
+      experiences: state.experiences,
+      items: state.items,
+      review: fallback,
+      error: String(error)
+    });
+
+  } finally {
+
+    if (
+      els.regenerateButton
+    ) {
+      els.regenerateButton.disabled = false;
+      els.regenerateButton.textContent =
+        "Regenerate";
+    }
+  }
 }
+
+// ============================================================
+// EDIT REVIEW
+// ============================================================
 
 function enableEditing() {
-  if (!state.generated) {
-    generateReview();
-    return;
-  }
+
+  if (!els.reviewText) return;
 
   els.reviewText.contentEditable = "true";
-  els.reviewText.classList.add("editing");
+
   els.reviewText.focus();
 
-  const range = document.createRange();
-  range.selectNodeContents(els.reviewText);
-  range.collapse(false);
+  els.reviewText.classList.add(
+    "editing"
+  );
 
-  const selection = window.getSelection();
-  selection.removeAllRanges();
-  selection.addRange(range);
-
-  els.editButton.textContent = "✓ Save";
-  els.editButton.dataset.editing = "true";
+  if (els.editButton) {
+    els.editButton.textContent =
+      "Save Review";
+  }
 }
 
 function saveEditing() {
-  const editedReview = els.reviewText.textContent.trim();
 
-  if (!editedReview) {
-    els.reviewText.textContent = buildReview();
-  }
+  if (!els.reviewText) return;
 
   els.reviewText.contentEditable = "false";
-  els.reviewText.classList.remove("editing");
-  els.editButton.textContent = "✎ Edit";
-  delete els.editButton.dataset.editing;
 
-  logEvent("review_edited", {
-    review: els.reviewText.textContent.trim()
-  });
-}
+  els.reviewText.classList.remove(
+    "editing"
+  );
 
-function continueToGoogle() {
-  if (!state.generated) {
-    generateReview();
-    return;
+  const editedReview =
+    els.reviewText.textContent.trim();
+
+  if (!editedReview) {
+
+    const fallback =
+      buildReview();
+
+    els.reviewText.textContent =
+      fallback;
   }
 
-  const url = window.CAFE_CONFIG?.googleReviewUrl || "";
-
-  if (!url || url.includes("PASTE_GOOGLE_REVIEW_LINK")) {
-    alert("Google Review link has not been added in config.js yet.");
-    return;
+  if (els.editButton) {
+    els.editButton.textContent =
+      "Edit Review";
   }
 
-  logEvent("google_click", {
+  logEvent({
+    event: "review_edited",
     rating: state.rating,
-    review: els.reviewText.textContent.trim()
+    experiences: state.experiences,
+    items: state.items,
+    review:
+      els.reviewText.textContent.trim()
   });
-
-  window.open(url, "_blank", "noopener,noreferrer");
 }
 
-function logEvent(eventType, data = {}) {
-  const endpoint = window.CAFE_CONFIG?.sheetsWebAppUrl || "";
+// ============================================================
+// COPY + OPEN GOOGLE
+// ============================================================
 
-  if (!endpoint || endpoint.includes("PASTE_")) return;
+async function continueToGoogle() {
+
+  const config =
+    window.CAFE_CONFIG || {};
+
+  const review =
+    els.reviewText
+      ? els.reviewText.textContent.trim()
+      : "";
+
+  if (!review) {
+    alert(
+      "Please create a review first."
+    );
+    return;
+  }
+
+  const googleUrl =
+    config.googleReviewUrl;
+
+  if (!googleUrl) {
+    alert(
+      "Google review link is not configured."
+    );
+    return;
+  }
+
+  // ----------------------------------------------------------
+  // COPY REVIEW
+  // ----------------------------------------------------------
+
+  try {
+
+    await navigator.clipboard.writeText(
+      review
+    );
+
+    alert(
+      "Review copied! Google Reviews will open now. Paste your review and submit it."
+    );
+
+  } catch (error) {
+
+    console.warn(
+      "Clipboard failed:",
+      error
+    );
+
+    alert(
+      "Google Reviews will open now. Please copy your review manually."
+    );
+  }
+
+  // ----------------------------------------------------------
+  // LOG GOOGLE CLICK
+  // ----------------------------------------------------------
+
+  logEvent({
+    event: "google_click",
+    rating: state.rating,
+    experiences: state.experiences,
+    items: state.items,
+    review: review
+  });
+
+  // ----------------------------------------------------------
+  // OPEN GOOGLE
+  // ----------------------------------------------------------
+
+  window.open(
+    googleUrl,
+    "_blank",
+    "noopener,noreferrer"
+  );
+}
+
+// ============================================================
+// GOOGLE SHEETS EVENT LOGGER
+// ============================================================
+
+function logEvent(extraData = {}) {
+
+  const config =
+    window.CAFE_CONFIG || {};
+
+  const endpoint =
+    config.sheetsWebAppUrl;
+
+  if (!endpoint) {
+    return;
+  }
 
   const payload = {
-    event: eventType,
-    scanId: state.scanId,
-    cafe: window.CAFE_CONFIG?.name || "",
-    timestamp: new Date().toISOString(),
-    ...data
+
+    timestamp:
+      new Date().toISOString(),
+
+    scanId:
+      state.scanId,
+
+    cafe:
+      config.name || "",
+
+    rating:
+      state.rating || "",
+
+    experiences:
+      state.experiences || [],
+
+    items:
+      state.items || [],
+
+    review:
+      els.reviewText
+        ? els.reviewText.textContent.trim()
+        : "",
+
+    ...extraData
   };
 
-  /*
-    no-cors is intentional for a simple Apps Script logging endpoint.
-    The browser cannot read the response, but the POST can still reach
-    the Apps Script web app.
-  */
-  fetch(endpoint, {
-    method: "POST",
-    mode: "no-cors",
-    headers: {
-      "Content-Type": "text/plain;charset=utf-8"
-    },
-    body: JSON.stringify(payload),
-    keepalive: true
-  }).catch(() => {});
+  try {
+
+    fetch(
+      endpoint,
+      {
+        method: "POST",
+        mode: "no-cors",
+        headers: {
+          "Content-Type":
+            "text/plain;charset=utf-8"
+        },
+        body:
+          JSON.stringify(payload)
+      }
+    );
+
+  } catch (error) {
+
+    console.warn(
+      "Event logging failed:",
+      error
+    );
+  }
 }
 
-els.stars.forEach(star => {
-  star.addEventListener("click", () => {
-    setRating(Number(star.dataset.rating));
-  });
-});
+// ============================================================
+// EXPERIENCE CHIPS
+// ============================================================
 
-els.experienceChips.forEach(chip => {
-  chip.addEventListener("click", () => toggleChip(chip));
-});
+function setupExperienceChips() {
 
-els.note.addEventListener("input", () => {
-  els.charCount.textContent = els.note.value.length;
-  syncState();
-});
-
-els.generateButton.addEventListener("click", generateReview);
-
-els.regenerateButton.addEventListener("click", regenerateReview);
-
-els.editButton.addEventListener("click", () => {
-  if (els.editButton.dataset.editing === "true") {
-    saveEditing();
-  } else {
-    enableEditing();
+  if (!els.experienceChips) {
+    return;
   }
-});
 
-els.googleButton.addEventListener("click", continueToGoogle);
+  const experiences = [
+    {
+      key: "food",
+      label: "Food"
+    },
+    {
+      key: "drinks",
+      label: "Drinks"
+    },
+    {
+      key: "ambience",
+      label: "Ambience"
+    },
+    {
+      key: "service",
+      label: "Service"
+    },
+    {
+      key: "staff",
+      label: "Staff"
+    },
+    {
+      key: "value",
+      label: "Value"
+    }
+  ];
 
-document.querySelector(".icon-button")?.addEventListener("click", () => {
-  const name = window.CAFE_CONFIG?.name || "this cafe";
-  alert(`${name}\n\nThank you for sharing your experience.`);
-});
+  els.experienceChips.innerHTML = "";
 
-applyCafeConfig();
+  experiences.forEach(item => {
 
-// Initial scan event.
-// This is sent once per page load when Sheets is connected.
-logEvent("scan", {});
+    const button =
+      document.createElement("button");
+
+    button.type = "button";
+
+    button.className =
+      "chip experience-chip";
+
+    button.textContent =
+      item.label;
+
+    button.addEventListener(
+      "click",
+      () => {
+
+        button.classList.toggle(
+          "active"
+        );
+
+        if (
+          state.experiences.includes(
+            item.key
+          )
+        ) {
+
+          state.experiences =
+            state.experiences.filter(
+              value =>
+                value !== item.key
+            );
+
+        } else {
+
+          state.experiences.push(
+            item.key
+          );
+        }
+
+        syncState();
+      }
+    );
+
+    els.experienceChips.appendChild(
+      button
+    );
+  });
+}
+
+// ============================================================
+// EVENT LISTENERS
+// ============================================================
+
+function setupEvents() {
+
+  // ----------------------------------------------------------
+  // STARS
+  // ----------------------------------------------------------
+
+  els.stars.forEach(
+    (star, index) => {
+
+      star.addEventListener(
+        "click",
+        () => {
+          setRating(index + 1);
+        }
+      );
+    }
+  );
+
+  // ----------------------------------------------------------
+  // NOTE
+  // ----------------------------------------------------------
+
+  if (els.note) {
+
+    els.note.addEventListener(
+      "input",
+      () => {
+
+        syncState();
+
+        if (els.charCount) {
+
+          els.charCount.textContent =
+            `${els.note.value.length}`;
+        }
+      }
+    );
+  }
+
+  // ----------------------------------------------------------
+  // GENERATE
+  // ----------------------------------------------------------
+
+  if (els.generateButton) {
+
+    els.generateButton.addEventListener(
+      "click",
+      generateReview
+    );
+  }
+
+  // ----------------------------------------------------------
+  // EDIT
+  // ----------------------------------------------------------
+
+  if (els.editButton) {
+
+    els.editButton.addEventListener(
+      "click",
+      () => {
+
+        const editing =
+          els.reviewText &&
+          els.reviewText.contentEditable ===
+            "true";
+
+        if (editing) {
+          saveEditing();
+        } else {
+          enableEditing();
+        }
+      }
+    );
+  }
+
+  // ----------------------------------------------------------
+  // REGENERATE
+  // ----------------------------------------------------------
+
+  if (els.regenerateButton) {
+
+    els.regenerateButton.addEventListener(
+      "click",
+      regenerateReview
+    );
+  }
+
+  // ----------------------------------------------------------
+  // GOOGLE
+  // ----------------------------------------------------------
+
+  if (els.googleButton) {
+
+    els.googleButton.addEventListener(
+      "click",
+      continueToGoogle
+    );
+  }
+}
+
+// ============================================================
+// INITIALIZE
+// ============================================================
+
+document.addEventListener(
+  "DOMContentLoaded",
+  () => {
+
+    applyCafeConfig();
+
+    setupExperienceChips();
+
+    setupEvents();
+
+    setRating(0);
+
+    logEvent({
+      event: "scan"
+    });
+
+  }
+);
