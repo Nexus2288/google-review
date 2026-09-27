@@ -1133,27 +1133,10 @@ async function continueToGoogle() {
     return;
   }
 
-  // Open a blank tab IMMEDIATELY while the click is active.
-  // This prevents popup blocking.
-  const googleWindow =
-    window.open(
-      "about:blank",
-      "_blank"
-    );
-
-  if (!googleWindow) {
-    alert(
-      "Google could not be opened. Please allow pop-ups for this site."
-    );
-    return;
-  }
-
   // Copy review
   try {
 
-    await navigator.clipboard.writeText(
-      review
-    );
+    await navigator.clipboard.writeText(review);
 
   } catch (error) {
 
@@ -1164,7 +1147,7 @@ async function continueToGoogle() {
 
   }
 
-  // Log Google click
+  // Log click
   logEvent({
     event: "google_click",
     rating: state.rating,
@@ -1173,20 +1156,9 @@ async function continueToGoogle() {
     review: review
   });
 
-  // Send the already-opened tab to Google
-  googleWindow.location.href =
-    googleUrl;
-
-  // Show confirmation
-  setTimeout(() => {
-
-    alert(
-      "Review copied!\n\nGoogle Reviews has been opened. Paste your review and submit it."
-    );
-
-  }, 500);
+  // Open Google in SAME TAB
+  window.location.href = googleUrl;
 }
-
 // ============================================================
 // GOOGLE SHEETS LOGGING
 // ============================================================
